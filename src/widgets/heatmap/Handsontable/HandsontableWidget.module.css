@@ -1,0 +1,16 @@
+.tableCellDefault {
+  color: rgb(51, 51, 51);
+  height: 40px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.tableDataCell {
+  color: transparent;
+  cursor: pointer;
+}
+
+.tableDataCell:hover {
+  color: rgb(51, 51, 51);
+}
+

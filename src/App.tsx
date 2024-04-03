@@ -1,14 +1,12 @@
 import React, { useMemo, useState } from "react";
-import { HandsontableWidget, HighchartsWidget } from "./widgets";
+import { HandsontableWidget, HighchartsWidget, MuiHeatmap } from "./widgets";
 import {
-  Alert,
   AppBar,
   Box,
   Button,
   ButtonProps,
   Container,
   Grid,
-  Link,
   Toolbar,
   Typography,
 } from "@mui/material";
@@ -84,23 +82,20 @@ function App() {
       </AppBar>
       <Container sx={{ paddingTop: 3 }} maxWidth="xl">
         <Grid container spacing={3}>
+          <Grid item lg={12} >
+            <Typography variant="h5" sx={{ marginBottom: 1 }}>
+              Mui heatmap
+            </Typography>
+            <MuiHeatmap
+              data={dataSource}
+            />
+          </Grid>
           <Grid item lg={12}>
             <Typography variant="h5" sx={{ marginBottom: 1 }}>
               Highcharts Heatmap
             </Typography>
-            <Alert severity="warning">
-              Please modify the highcharts-widget so that it returns a heatmap
-              using &nbsp;
-              <Link
-                href="https://www.npmjs.com/package/highcharts"
-                target="_blank"
-              >
-                highcharts
-              </Link>
-              .
-            </Alert>
             <HighchartsWidget
-              widgetId="mateo"
+              widgetId="highcharts"
               data={dataSource}
             />
           </Grid>
@@ -108,19 +103,8 @@ function App() {
             <Typography variant="h5" sx={{ marginBottom: 1 }}>
               Handsontable Heatmap
             </Typography>
-            <Alert severity="warning">
-              Please modify the handsontable-widget so that it returns a heatmap
-              using &nbsp;
-              <Link
-                href="https://www.npmjs.com/package/handsontable"
-                target="_blank"
-                underline="hover"
-              >
-                handsontable
-              </Link>
-            </Alert>
             <HandsontableWidget
-              widgetId="mateo1"
+              widgetId="handsontable"
               data={dataSource}
             />
           </Grid>

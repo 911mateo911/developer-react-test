@@ -6,6 +6,7 @@ import {
   Box
 } from "@mui/material";
 import { HeatmapDataSource, HeatmapProps } from "./Heatmap.props";
+import { useCheckDataSourceValidity } from "../../hooks/useCheckDataSourceValidity";
 HM(Highcharts);
 
 const generateHighchartsData = (tableData: HeatmapDataSource['tableData']): PointOptionsObject[] => {
@@ -17,40 +18,12 @@ const generateHighchartsData = (tableData: HeatmapDataSource['tableData']): Poin
         x: xIndex
       } as PointOptionsObject;
     })
-  })
-};
-
-const checkDataSourceValidity = ({
-  tableData,
-  tableHeaders
-}: HeatmapDataSource) => {
-  const tableDataIsValid = tableData.every((
-    mtx
-  ) => {
-    return mtx.every((value, index) => {
-      if (index === 0) {
-        return typeof value === 'string';
-      } else {
-        return typeof value === 'number' && !isNaN(value);
-      }
-    })
   });
-
-  const dataMatrixHaveSameLength = tableData.every(mtx => mtx.length === tableData[0].length);
-
-  const tableHeadersLength = tableHeaders.length;
-  const tableHeadersAreTheSameLengthAsData = dataMatrixHaveSameLength && tableHeadersLength === tableData[0].length;
-
-  return {
-    condition: tableDataIsValid && tableHeadersAreTheSameLengthAsData,
-    tableDataIsValid,
-    tableHeadersAreTheSameLengthAsData
-  };
 };
-
 interface HighchartsWidgetProps extends HeatmapProps {
   options?: Highcharts.Options;
-}
+  onInstanceAttached?: (instance: ReturnType<typeof Highcharts.chart>) => void;
+};
 
 export const HighchartsWidget = ({
   widgetId,
@@ -59,21 +32,15 @@ export const HighchartsWidget = ({
     '#fdbaa1',
     '#67010f'
   ],
-  options = {}
+  options = {},
+  onInstanceAttached
 }: HighchartsWidgetProps) => {
   const {
     tableData,
     tableHeaders
   } = data;
 
-  const validityCheck = checkDataSourceValidity(data);
-  if (!validityCheck.condition) {
-    console.error({
-      cause: 'INVALID DATA PROVIDED',
-      data,
-      ...validityCheck
-    });
-  };
+  useCheckDataSourceValidity(data);
 
   const chartRef = useRef<ReturnType<typeof Highcharts.chart> | null>(null);
 
@@ -111,6 +78,17 @@ export const HighchartsWidget = ({
         },
         ...options?.xAxis
       },
+      legend: {
+        align: 'right',
+        layout: 'vertical',
+        margin: 16,
+        ...options?.legend,
+        verticalAlign: 'middle'
+      },
+      tooltip: {
+        format: '<b>{point.value}</b>',
+        ...options?.tooltip,
+      },
       colorAxis: {
         min: 0,
         minColor,
@@ -126,13 +104,14 @@ export const HighchartsWidget = ({
       ]
     };
     chartRef.current = Highcharts.chart(widgetId, instanceOptions);
+    onInstanceAttached?.(chartRef.current);
 
     return () => {
       if (chartRef.current) {
         chartRef.current.destroy();
       }
     }
-  }, [colorScale, memoizedChartData, options, widgetId, xAxisHeaders, yAxisNormalizedHeaders, yAxisTitle]);
+  }, [colorScale, memoizedChartData, options, widgetId, xAxisHeaders, yAxisNormalizedHeaders, yAxisTitle, onInstanceAttached]);
 
   return (
     <Box id={widgetId} />

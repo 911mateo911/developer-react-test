@@ -4,8 +4,10 @@ import {
 } from "@mui/material";
 import Handsontable from 'handsontable';
 import chroma from 'chroma-js';
-import { HeatmapDataSource, HeatmapProps } from "./Heatmap.props";
+import { HeatmapDataSource, HeatmapProps } from "../Heatmap.props";
 import styles from './HandsontableWidget.module.css';
+import { useCheckDataSourceValidity } from "../../../hooks/useCheckDataSourceValidity";
+import { calculatePercentageOfANumberBetweenBoundaries, getMaxAndMinValueFromMatrix } from "../helpers";
 
 const generateHandsontableWidgetProps = ({
   tableData,
@@ -22,11 +24,7 @@ const generateHandsontableWidgetProps = ({
   });
 
   if (!xAxisOnTop) {
-    const firstElem = preparedData.shift();
-
-    if (firstElem) {
-      preparedData.push(firstElem);
-    }
+    [preparedData[0], preparedData[preparedData.length - 1]] = [preparedData[preparedData.length - 1], preparedData[0]];
   }
 
   const minAndMaxValues = getMaxAndMinValueFromMatrix(preparedData);
@@ -37,44 +35,10 @@ const generateHandsontableWidgetProps = ({
   }
 };
 
-const getMaxAndMinValueFromMatrix = (tableData: HeatmapDataSource['tableData']) => {
-  let maxNumber = Number.MIN_SAFE_INTEGER;
-  let minNumber = Number.MAX_SAFE_INTEGER;
-
-  tableData.forEach(source => {
-    source.forEach(value => {
-      if (typeof value === 'string') {
-        return;
-      };
-
-      if (value > maxNumber) {
-        maxNumber = value;
-      };
-
-      if (value < minNumber) {
-        minNumber = value;
-      };
-    })
-  });
-
-  return {
-    maxNumber,
-    minNumber
-  };
-};
-
-const calculatePercentageOfANumberBetweenBoundaries = (num: number, {
-  maxNumber,
-  minNumber
-}: ReturnType<typeof getMaxAndMinValueFromMatrix>) => {
-  const letfHandOperation = ((num - minNumber) / (maxNumber - minNumber));
-
-  return letfHandOperation;
-};
-
 interface HandsontableWidgetProps extends HeatmapProps {
   options?: Handsontable.GridSettings;
   xAxisOnTop?: boolean;
+  onInstanceAttached?: (instance: Handsontable) => void;
 };
 
 export const HandsontableWidget = ({
@@ -85,8 +49,10 @@ export const HandsontableWidget = ({
     '#67010f'
   ],
   options,
-  xAxisOnTop
+  xAxisOnTop,
+  onInstanceAttached
 }: HandsontableWidgetProps) => {
+  useCheckDataSourceValidity(data);
   const heatmapScale = chroma.scale(colorScale);
   const heatMapChartRef = useRef<Handsontable | null>(null);
   const heatMapMinMaxValuesRef = useRef<ReturnType<typeof getMaxAndMinValueFromMatrix> | null>(null);
@@ -130,19 +96,20 @@ export const HandsontableWidget = ({
           ) {
             const opacityPercentage = calculatePercentageOfANumberBetweenBoundaries(value, heatMapMinMaxValuesRef.current);
             const chroma = heatmapScale(opacityPercentage).hex();
+            tableCell.classList.add(styles.tableDataCell);
             tableCell.style.backgroundColor = chroma;
-            tableCell.textContent = ''
           }
         },
         ...options
       });
+      onInstanceAttached?.(heatMapChartRef.current);
     } else {
       if (options) {
         heatMapChartRef.current?.updateSettings(options);
         heatMapChartRef.current?.render();
       }
     };
-  }, [heatmapScale, memoizedData, options, widgetId]);
+  }, [heatmapScale, memoizedData, options, widgetId, onInstanceAttached]);
 
   return (
     <Box bgcolor='white' position='relative' id={widgetId} />
