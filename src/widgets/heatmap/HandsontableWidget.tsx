@@ -5,16 +5,12 @@ import {
 import Handsontable from 'handsontable';
 import chroma from 'chroma-js';
 import { HeatmapDataSource, HeatmapProps } from "./Heatmap.props";
-
-const heatmapScale = chroma.scale([
-  '#fdbaa1',
-  '#67010f'
-]);
+import styles from './HandsontableWidget.module.css';
 
 const generateHandsontableWidgetProps = ({
   tableData,
   tableHeaders
-}: HeatmapDataSource) => {
+}: HeatmapDataSource, xAxisOnTop?: boolean) => {
   const preparedData = tableHeaders.map((header, index) => {
     const data: Array<string | number> = [header];
 
@@ -25,10 +21,12 @@ const generateHandsontableWidgetProps = ({
     return data;
   });
 
-  const firstElem = preparedData.shift();
+  if (!xAxisOnTop) {
+    const firstElem = preparedData.shift();
 
-  if (firstElem) {
-    preparedData.push(firstElem);
+    if (firstElem) {
+      preparedData.push(firstElem);
+    }
   }
 
   const minAndMaxValues = getMaxAndMinValueFromMatrix(preparedData);
@@ -74,10 +72,22 @@ const calculatePercentageOfANumberBetweenBoundaries = (num: number, {
   return letfHandOperation;
 };
 
+interface HandsontableWidgetProps extends HeatmapProps {
+  options?: Handsontable.GridSettings;
+  xAxisOnTop?: boolean;
+};
+
 export const HandsontableWidget = ({
   data,
-  widgetId
-}: HeatmapProps) => {
+  widgetId,
+  colorScale = [
+    '#fdbaa1',
+    '#67010f'
+  ],
+  options,
+  xAxisOnTop
+}: HandsontableWidgetProps) => {
+  const heatmapScale = chroma.scale(colorScale);
   const heatMapChartRef = useRef<Handsontable | null>(null);
   const heatMapMinMaxValuesRef = useRef<ReturnType<typeof getMaxAndMinValueFromMatrix> | null>(null);
 
@@ -85,7 +95,7 @@ export const HandsontableWidget = ({
     const {
       minAndMaxValues,
       preparedData
-    } = generateHandsontableWidgetProps(data);
+    } = generateHandsontableWidgetProps(data, xAxisOnTop);
 
     heatMapMinMaxValuesRef.current = minAndMaxValues;
 
@@ -95,7 +105,7 @@ export const HandsontableWidget = ({
     };
 
     return preparedData;
-  }, [data]);
+  }, [data, xAxisOnTop]);
 
   useEffect(() => {
     const widgetContainer = document.getElementById(widgetId);
@@ -112,8 +122,7 @@ export const HandsontableWidget = ({
 
           const tableCell = args[1];
           const value = args[5];
-          tableCell.style.border = '1px solid black';
-          tableCell.style.color = 'black';
+          tableCell.classList.add(styles.tableCellDefault);
 
           if (
             typeof value !== 'string'
@@ -123,12 +132,17 @@ export const HandsontableWidget = ({
             const chroma = heatmapScale(opacityPercentage).hex();
             tableCell.style.backgroundColor = chroma;
             tableCell.textContent = ''
-            tableCell.style.height = '40px'
           }
         },
+        ...options
       });
+    } else {
+      if (options) {
+        heatMapChartRef.current?.updateSettings(options);
+        heatMapChartRef.current?.render();
+      }
     };
-  }, [memoizedData, widgetId]);
+  }, [heatmapScale, memoizedData, options, widgetId]);
 
   return (
     <Box bgcolor='white' position='relative' id={widgetId} />

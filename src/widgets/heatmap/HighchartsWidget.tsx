@@ -25,34 +25,53 @@ const checkDataSourceValidity = ({
   tableHeaders
 }: HeatmapDataSource) => {
   const tableDataIsValid = tableData.every((
-    value, index
+    mtx
   ) => {
-    if (index === 0) {
-      return typeof value === 'string'
-    } else {
-      return typeof value === 'number' && !isNaN(value)
-    }
+    return mtx.every((value, index) => {
+      if (index === 0) {
+        return typeof value === 'string';
+      } else {
+        return typeof value === 'number' && !isNaN(value);
+      }
+    })
   });
 
-  const tableHeadersLength = tableHeaders.length;
-  const tableHeadersAreTheSameLengthAsData = tableHeadersLength === tableData.slice(1).length;
+  const dataMatrixHaveSameLength = tableData.every(mtx => mtx.length === tableData[0].length);
 
-  return tableDataIsValid && tableHeadersAreTheSameLengthAsData;
+  const tableHeadersLength = tableHeaders.length;
+  const tableHeadersAreTheSameLengthAsData = dataMatrixHaveSameLength && tableHeadersLength === tableData[0].length;
+
+  return {
+    condition: tableDataIsValid && tableHeadersAreTheSameLengthAsData,
+    tableDataIsValid,
+    tableHeadersAreTheSameLengthAsData
+  };
 };
+
+interface HighchartsWidgetProps extends HeatmapProps {
+  options?: Highcharts.Options;
+}
 
 export const HighchartsWidget = ({
   widgetId,
-  data
-}: HeatmapProps) => {
+  data,
+  colorScale = [
+    '#fdbaa1',
+    '#67010f'
+  ],
+  options = {}
+}: HighchartsWidgetProps) => {
   const {
     tableData,
     tableHeaders
   } = data;
 
-  if (!checkDataSourceValidity(data)) {
-    console.dir({
+  const validityCheck = checkDataSourceValidity(data);
+  if (!validityCheck.condition) {
+    console.error({
       cause: 'INVALID DATA PROVIDED',
-      data
+      data,
+      ...validityCheck
     });
   };
 
@@ -65,47 +84,55 @@ export const HighchartsWidget = ({
   const memoizedChartData = useMemo(() => generateHighchartsData(tableData), [tableData]);
 
   useEffect(() => {
-    chartRef.current = Highcharts.chart(widgetId, {
+    const [minColor, maxColor] = colorScale;
+
+    const instanceOptions: Highcharts.Options = {
       chart: {
         type: 'heatmap',
-        plotBorderWidth: 1
+        plotBorderWidth: 1,
+        ...options?.chart
       },
       yAxis: {
         categories: yAxisNormalizedHeaders,
         title: {
           text: yAxisTitle,
         },
-        reversed: true
+        reversed: true,
+        ...options?.yAxis
       },
       title: {
         text: 'Highcharts Widget',
+        ...options?.title
       },
       xAxis: {
         categories: xAxisHeaders,
         title: {
           text: ''
-        }
+        },
+        ...options?.xAxis
       },
       colorAxis: {
         min: 0,
-        minColor: '#fdbaa1',
-        maxColor: '#67010f'
+        minColor,
+        maxColor,
+        ...options?.colorAxis
       },
-      series: [
+      series: options?.series || [
         {
           type: 'heatmap',
           borderWidth: 1,
           data: memoizedChartData
         }
       ]
-    });
+    };
+    chartRef.current = Highcharts.chart(widgetId, instanceOptions);
 
     return () => {
       if (chartRef.current) {
         chartRef.current.destroy();
       }
     }
-  }, [memoizedChartData, widgetId, xAxisHeaders, yAxisNormalizedHeaders, yAxisTitle]);
+  }, [colorScale, memoizedChartData, options, widgetId, xAxisHeaders, yAxisNormalizedHeaders, yAxisTitle]);
 
   return (
     <Box id={widgetId} />

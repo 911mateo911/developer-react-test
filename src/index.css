@@ -17,3 +17,8 @@ code {
   width: 100% !important;
 }
 
+.htFocusCatcher {
+  /* Just for design reasons */
+  visibility: hidden;
+}
+

@@ -6,4 +6,5 @@ export interface HeatmapDataSource {
 export interface HeatmapProps {
   widgetId: string;
   data: HeatmapDataSource;
+  colorScale?: [string, string];
 }
