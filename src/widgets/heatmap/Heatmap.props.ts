@@ -1,4 +1,9 @@
+export interface HeatmapDataSource {
+  tableHeaders: string[];
+  tableData: Array<[string, ...number[]] | (string | number)[]>;
+}
+
 export interface HeatmapProps {
-  tableHeaders: Array<string>;
-  tableData: Array<Array<string | number>>;
+  widgetId: string;
+  data: HeatmapDataSource;
 }

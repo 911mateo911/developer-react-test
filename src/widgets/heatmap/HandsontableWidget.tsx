@@ -1,45 +1,136 @@
-import React from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import {
-  Box,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
+  Box
 } from "@mui/material";
-import { HeatmapProps } from "./Heatmap.props";
+import Handsontable from 'handsontable';
+import chroma from 'chroma-js';
+import { HeatmapDataSource, HeatmapProps } from "./Heatmap.props";
 
-export const HandsontableWidget = (props: HeatmapProps) => {
-  const { tableData, tableHeaders } = props;
+const heatmapScale = chroma.scale([
+  '#fdbaa1',
+  '#67010f'
+]);
 
-  const showColHeader = (item: string) => {
-    return <TableCell>{item}</TableCell>;
+const generateHandsontableWidgetProps = ({
+  tableData,
+  tableHeaders
+}: HeatmapDataSource) => {
+  const preparedData = tableHeaders.map((header, index) => {
+    const data: Array<string | number> = [header];
+
+    tableData.forEach(source => {
+      data.push(source[index]);
+    });
+
+    return data;
+  });
+
+  const firstElem = preparedData.shift();
+
+  if (firstElem) {
+    preparedData.push(firstElem);
+  }
+
+  const minAndMaxValues = getMaxAndMinValueFromMatrix(preparedData);
+
+  return {
+    preparedData,
+    minAndMaxValues
+  }
+};
+
+const getMaxAndMinValueFromMatrix = (tableData: HeatmapDataSource['tableData']) => {
+  let maxNumber = Number.MIN_SAFE_INTEGER;
+  let minNumber = Number.MAX_SAFE_INTEGER;
+
+  tableData.forEach(source => {
+    source.forEach(value => {
+      if (typeof value === 'string') {
+        return;
+      };
+
+      if (value > maxNumber) {
+        maxNumber = value;
+      };
+
+      if (value < minNumber) {
+        minNumber = value;
+      };
+    })
+  });
+
+  return {
+    maxNumber,
+    minNumber
   };
+};
 
-  const showColHeaders = () => {
-    return (
-      <TableRow>{tableHeaders.map((header) => showColHeader(header))}</TableRow>
-    );
-  };
+const calculatePercentageOfANumberBetweenBoundaries = (num: number, {
+  maxNumber,
+  minNumber
+}: ReturnType<typeof getMaxAndMinValueFromMatrix>) => {
+  const letfHandOperation = ((num - minNumber) / (maxNumber - minNumber));
 
-  const showRowItem = (item: Array<string | number>) => {
-    return item.map((x) => <TableCell>{x}</TableCell>);
-  };
+  return letfHandOperation;
+};
 
-  const showRowData = () => {
-    return tableData.map((x) => <TableRow>{showRowItem(x)}</TableRow>);
-  };
+export const HandsontableWidget = ({
+  data,
+  widgetId
+}: HeatmapProps) => {
+  const heatMapChartRef = useRef<Handsontable | null>(null);
+  const heatMapMinMaxValuesRef = useRef<ReturnType<typeof getMaxAndMinValueFromMatrix> | null>(null);
+
+  const memoizedData = useMemo(() => {
+    const {
+      minAndMaxValues,
+      preparedData
+    } = generateHandsontableWidgetProps(data);
+
+    heatMapMinMaxValuesRef.current = minAndMaxValues;
+
+    if (heatMapChartRef.current) {
+      heatMapChartRef.current.loadData(preparedData);
+      heatMapChartRef.current.render();
+    };
+
+    return preparedData;
+  }, [data]);
+
+  useEffect(() => {
+    const widgetContainer = document.getElementById(widgetId);
+
+    if (widgetContainer && !heatMapChartRef.current) {
+      heatMapChartRef.current = new Handsontable(widgetContainer, {
+        data: memoizedData,
+        licenseKey: 'non-commercial-and-evaluation',
+        colWidths: 100,
+        stretchH: 'all',
+        width: '100%',
+        renderer(...args) {
+          Handsontable.renderers.TextRenderer(...args);
+
+          const tableCell = args[1];
+          const value = args[5];
+          tableCell.style.border = '1px solid black';
+          tableCell.style.color = 'black';
+
+          if (
+            typeof value !== 'string'
+            && heatMapMinMaxValuesRef.current
+          ) {
+            const opacityPercentage = calculatePercentageOfANumberBetweenBoundaries(value, heatMapMinMaxValuesRef.current);
+            const chroma = heatmapScale(opacityPercentage).hex();
+            tableCell.style.backgroundColor = chroma;
+            tableCell.textContent = ''
+            tableCell.style.height = '40px'
+          }
+        },
+      });
+    };
+  }, [memoizedData, widgetId]);
 
   return (
-    <Box>
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>{showColHeaders()}</TableHead>
-          <TableBody>{showRowData()}</TableBody>
-        </Table>
-      </TableContainer>
-    </Box>
+    <Box bgcolor='white' position='relative' id={widgetId} />
   );
 };

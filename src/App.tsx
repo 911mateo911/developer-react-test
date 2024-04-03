@@ -1,20 +1,43 @@
-import React from "react";
-import { HighchartsWidget, HandsontableWidget } from "./widgets";
+import React, { useMemo, useState } from "react";
+import { HandsontableWidget, HighchartsWidget } from "./widgets";
 import {
   Alert,
   AppBar,
   Box,
   Button,
+  ButtonProps,
   Container,
   Grid,
   Link,
   Toolbar,
   Typography,
 } from "@mui/material";
-import * as dataSource from "./dataSources/versions.json";
-const { tableHeaders, tableData } = dataSource;
+
+type AVAILABLE_DATA_SOURCES = 'products' | 'regions' | 'versions';
+
+const getBtnVariantBasedOnDataSrcSelection = (
+  dataSrc: AVAILABLE_DATA_SOURCES,
+  selectedSrc: AVAILABLE_DATA_SOURCES
+): ButtonProps['variant'] | undefined => {
+  if (dataSrc === selectedSrc) {
+    return 'contained';
+  };
+}
 
 function App() {
+  const [selectedDataSourceType, setSelectedDataSourceType] = useState<AVAILABLE_DATA_SOURCES>('versions');
+
+  const dataSource = useMemo(() => {
+    try {
+      const dataSrc = require(`./dataSources/${selectedDataSourceType}.json`);
+
+      return dataSrc;
+    } catch (err) {
+      console.error(err);
+      return null;
+    }
+  }, [selectedDataSourceType]);
+
   return (
     <Box className="App">
       <AppBar position="static">
@@ -35,13 +58,25 @@ function App() {
             >
               Data Source:
             </Typography>
-            <Button variant="contained" size="small">
+            <Button
+              variant={getBtnVariantBasedOnDataSrcSelection('versions', selectedDataSourceType)}
+              onClick={() => setSelectedDataSourceType('versions')}
+              size="small"
+            >
               Versions
             </Button>
-            <Button size="small" disabled sx={{ margin: "0 15px" }}>
+            <Button
+              variant={getBtnVariantBasedOnDataSrcSelection('products', selectedDataSourceType)}
+              size="small"
+              onClick={() => setSelectedDataSourceType('products')} sx={{ margin: "0 15px" }}
+            >
               Products
             </Button>
-            <Button size="small" disabled>
+            <Button
+              variant={getBtnVariantBasedOnDataSrcSelection('regions', selectedDataSourceType)}
+              size="small"
+              onClick={() => setSelectedDataSourceType('regions')}
+            >
               Regions
             </Button>
           </Box>
@@ -65,8 +100,8 @@ function App() {
               .
             </Alert>
             <HighchartsWidget
-              tableHeaders={tableHeaders}
-              tableData={tableData}
+              widgetId="mateo"
+              data={dataSource}
             />
           </Grid>
           <Grid item lg={12}>
@@ -85,8 +120,8 @@ function App() {
               </Link>
             </Alert>
             <HandsontableWidget
-              tableHeaders={tableHeaders}
-              tableData={tableData}
+              widgetId="mateo1"
+              data={dataSource}
             />
           </Grid>
         </Grid>
